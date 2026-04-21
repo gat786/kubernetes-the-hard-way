@@ -301,5 +301,72 @@ best inorder to do it all in one day.
       stats         Return statistical information for the resources in the node.
       version       Print the version of the kubeletctl
       ```
+    
 3. Control Plane Setup
+  
+  Control plane is the node from where all the decisions of what gets to run on 
+  a cluster gets decided, this is where the brains and the memorystore of k8s
+  resides. The components that run on a control plane node are as below
+  
+  * ETCD - Memory store in which all the information regarding a cluster is stored.
+  ETCD is only ever accessed by the API-Server and all the other components get
+  to know about cluster and its state from api-server and never really directly
+  talk to a ETCD instance.
+  
+  * API-Server - The Server with which you talk to inorder to control a kubernetes
+  cluster. This receives requests from clients (users, nodes in the cluster, cloud
+  providers) and makes changes to the ETCD database to reflect the updated statuses
+  after a change or responds to the request with the requested data.
+  
+  * Kube-Controller-Manager - The actual program which controls resources, makes sure
+  they are made to be deployed when they are not present and removes them when not
+  needed.
+  
+  * Kube-Scheduler - The program which keeps monitoring the workloads that are to be
+  scheduled and also on the nodes and their statuses and decides which workload gets
+  to live where in a given context.
+  
+  
+  Lets start by installing things 1 by 1 on the control plane nodes
+  
+  * etcd
+    
+    Below is the script to install etcd
+  
+    ```sh
+    #!/bin/bash
+    
+    ETCD_VERSION=v3.6.4
+    ARCH=arm64
+    
+    curl -fsSLO "https://github.com/etcd-io/etcd/releases/download/${ETCD_VERSION?}/etcd-${ETCD_VERSION?}-linux-${ARCH?}.tar.gz"
+    
+    tar xzvof "etcd-${ETCD_VERSION?}-linux-${ARCH?}.tar.gz"
+    
+    sudo install -m 755 "etcd-${ETCD_VERSION?}-linux-${ARCH?}"/{etcd,etcdctl,etcdutl} /usr/local/bin
+    
+    etcdctl completion bash | sudo tee /etc/bash_completion.d/etcdctl
+    ```
+    
+    We will be running etcd with a different user, lets create a new use for that
+  
+    ```sh
+    sudo adduser \
+        --system \
+        --group \
+        --disabled-login \
+        --disabled-password \
+        --home /var/lib/etcd \
+        etcd
+    ```
+  
+    Now we create a systemctl script to enable start of etcd via systemd as a 
+    unit service
+    
+    ```sh
+    sudo wget -O /etc/systemd/system/etcd.service https://labs.iximiuz.com/content/files/courses/kubernetes-the-very-hard-way-0cbfd997/03-control-plane/01-etcd/__static__/etcd.service
+    ```
+    
+  
+  
 4. Connectivity and configurations
