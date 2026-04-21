@@ -140,7 +140,8 @@ best inorder to do it all in one day.
     sudo mkdir -p /var/lib/kubelet/config.d
     sudo vim -p /var/lib/kubelet/config.d/99-cri.conf
     ```
-  
+    
+    Making sure kubelet uses our containerd installation
     ```yaml
     apiVersion: kubelet.config.k8s.io/v1beta1
     kind: KubeletConfiguration
@@ -148,7 +149,9 @@ best inorder to do it all in one day.
     containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
     cgroupDriver: systemd
     ```
-  
+    
+    Making sure kubelet's api is available without auth, so that we can check if its
+    healthy or not.
     ```yaml
     apiVersion: kubelet.config.k8s.io/v1beta1
     kind: KubeletConfiguration
@@ -160,6 +163,59 @@ best inorder to do it all in one day.
     authorization:
       mode: AlwaysAllow
     ```
+    
+    Providing static yamls paths to kubelet
+    ```yaml
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    kind: KubeletConfiguration
+    
+    staticPodPath: /etc/kubernetes/manifests
+    ```
+  
+    Once static pods directory is setup we can create a manifest to be in 
+    static pods directory and kubelet will make sure that those pods are running
+    on our node. Lets create one;
+  
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: podinfo
+    spec:
+      hostNetwork: true
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:latest
+          ports:
+            - containerPort: 9898
+    ```
+  
+    You can check the status/info about this pod by querying kubelet's rest api
+    which we made available without auth in the previous step.
+  
+    ```sh
+    curl -k https://localhost:10250/pods | jq ".items[0].metadata"
+    ```
+    
+    Since kubelet uses namespaces to segregate deployments of pods you can actually
+    see the deployment using nerdctl and specifying namespace in which the pod
+    was deployed. You can do this by first getting namespace name via ctr
+  
+    ```sh
+    sudo ctr namespaces ls
+    ```
+  
+    and then listing pods within that namespace name to nerdctl cli
+  
+    ```sh
+    sudo nerdctl ps --namespace k8s.io
+    ```
+  
+    You will notice that we have `hostNetwork: true` in the podSpec. It means 
+    that the ports that are exposed by the pod will also be available on nodes
+    port of the exact same numbers. If you turn that off then you will need to
+    read the response coming from kubelet api, find the ip which was attached to
+    this specific pod and then query that podIP to get a response from that pod.
   
 3. Control Plane Setup
 4. Connectivity and configurations
