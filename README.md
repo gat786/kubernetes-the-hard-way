@@ -259,6 +259,22 @@ best inorder to do it all in one day.
       # logs of a container
       sudo crictl logs "d79d833c711b8e342168a6ccb7f508a946503d014291fcce1eed15616a3d212d"
       ```
-  
+
+    * KubeletCTL
+      
+    
+      Kubelet CTL is a tool that directly talks with kubelet and lets you know 
+      information about that particular node on which that kubelet instance is 
+      running
+    
+      ```sh
+      KUBELETCTL_VERSION=v1.13
+      ARCH=arm64
+      
+      curl -fsSLO "https://github.com/cyberark/kubeletctl/releases/download/${KUBELETCTL_VERSION?}/kubeletctl_linux_${ARCH?}"
+      
+      sudo install -m 755 kubeletctl_linux_${ARCH?} /usr/local/bin/kubeletctl
+      ```
+
 3. Control Plane Setup
 4. Connectivity and configurations
