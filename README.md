@@ -275,6 +275,31 @@ best inorder to do it all in one day.
       
       sudo install -m 755 kubeletctl_linux_${ARCH?} /usr/local/bin/kubeletctl
       ```
-
+      
+      with kubeletctl you can do the standard operations on a container running 
+      on on node like 
+      
+      ```txt
+      attach        Attach to a container
+      checkpoint    Taking a container snapshot
+      configz       Return kubelet's configuration.
+      containerLogs Return container log
+      cri           Run commands inside a container through the Container Runtime Interface (CRI)
+      debug         Return debug information (pprof or flags)
+      exec          Run commands inside a container
+      healthz       Check the state of the node
+      help          Help about any command
+      log           Return the log from the node.
+      metrics       Return resource usage metrics (such as container CPU, memory usage, etc.)
+      pid2pod       That shows how Linux process IDs (PIDs) can be mapped to Kubernetes pod metadata
+      pods          Get list of pods on the node
+      portForward   Attach to a container
+      run           Run commands inside a container
+      runningpods   Returns all pods running on kubelet from looking at the container runtime cache.
+      scan          Scans for nodes with opened kubelet API
+      spec          Cached MachineInfo returned by cadvisor
+      stats         Return statistical information for the resources in the node.
+      version       Print the version of the kubeletctl
+      ```
 3. Control Plane Setup
 4. Connectivity and configurations
