@@ -217,5 +217,48 @@ best inorder to do it all in one day.
     read the response coming from kubelet api, find the ip which was attached to
     this specific pod and then query that podIP to get a response from that pod.
   
+    * Crictl
+      
+      CriCTL is a tool that can help you inspect and debug containers and images
+      managed by kubelet
+      
+      ```sh
+      # crictl does not have patch releases
+      CRICTL_VERSION=v1.35.0
+      ARCH=arm64
+      
+      curl -fsSLO "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION?}/crictl-${CRICTL_VERSION?}-linux-${ARCH?}.tar.gz"
+      
+      sudo tar xzvof "crictl-${CRICTL_VERSION?}-linux-${ARCH?}.tar.gz" -C /usr/local/bin
+      ```
+    
+      Inorder for crictl to correctly interact with our containerd installation
+      we create a crictl yaml config file and let it know about containerd 
+      socket endpoint. Create file with below content at `/etc/crictl.yaml`
+    
+      ```yaml
+      runtime-endpoint: unix:///var/run/containerd/containerd.sock
+      image-endpoint: unix:///var/run/containerd/containerd.sock
+      ```
+    
+      You can run commands like 
+    
+      ```sh
+      sudo crictl pods
+      sudo crictl images
+      
+      # list all containers
+      sudo crictl ps -a
+      
+      # exec into a container
+      sudo crictl exec "d79d833c711b8e342168a6ccb7f508a946503d014291fcce1eed15616a3d212d" /bin/sh -c "ps aux"
+      
+      # interactive exec
+      sudo crictl exec -it "d79d833c711b8e342168a6ccb7f508a946503d014291fcce1eed15616a3d212d" /bin/sh
+      
+      # logs of a container
+      sudo crictl logs "d79d833c711b8e342168a6ccb7f508a946503d014291fcce1eed15616a3d212d"
+      ```
+  
 3. Control Plane Setup
 4. Connectivity and configurations
