@@ -446,13 +446,111 @@ best inorder to do it all in one day.
     ```sh
     sudo openssl genrsa -out ca.key 4096
     
-    sudo openssl req -x509 -new -nodes \
+    sudo openssl req -x509 -new -noenc \ #ktvhw uses nodes which is no-des encryption, this flag has been deprecated.
         -key ca.key -out ca.crt \
         -subj "/CN=etcd" \
         -sha256 \
         -days 3650
     ```
-    
   
+    Inorder for a etcd setup to work, we need multiple certs, 
+    1. etcd-server certificate, something which server will have in its process
+        using which it will identity itself as the etcd server.
+    2. etcd-client certificate, something which the clients that connect with etcd
+        will present whenever they raise a req to the etcd process.
+    
+    They can be created as below, starting with server cert
+    
+    ```sh
+    cat <<EOF | sudo tee server.cnf
+    [ req ]
+    default_bits       = 2048
+    distinguished_name = req_distinguished_name
+    req_extensions     = req_ext
+    prompt             = no
+    
+    [ req_distinguished_name ]
+    CN = server
+    
+    [ req_ext ]
+    subjectAltName = @alt_names
+    
+    [ alt_names ]
+    DNS.1 = localhost
+    DNS.2 = $(hostname)
+    IP.1  = 127.0.0.1
+    IP.2  = ::1
+    IP.3 = $(ip -o -4 addr show | grep 'eth' | awk '{split($4,a,"/"); print a[1]}' | paste -sd,)
+    EOF
+    
+    sudo openssl genrsa -out server.key 2048
+    sudo openssl req -new -key server.key -out server.csr -config server.cnf
+    sudo openssl x509 -req -in server.csr -out server.crt \
+      -CA ca.crt -CAkey ca.key \
+      -days 365 -extfile server.cnf -extensions req_ext
+
+    ```
+    
+    and the client cert
+    
+    ```sh
+    sudo openssl genrsa -out client.key 2048
+    sudo openssl req -new -key client.key -out client.csr -subj "/CN=etcd/O=etcd"
+    sudo openssl x509 -req -in client.csr -out client.crt \
+      -CA ca.crt -CAkey ca.key \
+      -days 365
+    ```
+    
+    Since we are running etcd from a different linux user and group, lets
+    change the ownership of the pki directory to make sure that only etcd user and 
+    group own that directory and can read and write to that directory.
+  
+    ```sh
+    sudo chown -R etcd:etcd .
+    ```
+    
+    We also want to make sure that the client.key is accessible to everyone 
+    (every possible client, in our case it will only be kube-apiserver)
+  
+    ```sh
+    sudo chmod 644 client.key
+    ```
+  
+    We want to configure the etcd-server to use the certificates that we just 
+    created
+    
+    ```sh
+    cat <<EOF | sudo tee -a /etc/default/etcd
+    
+    ETCD_LISTEN_CLIENT_URLS=https://0.0.0.0:2379
+    
+    ETCD_CLIENT_CERT_AUTH=true
+    ETCD_CERT_FILE=/etc/etcd/pki/server.crt
+    ETCD_KEY_FILE=/etc/etcd/pki/server.key
+    ETCD_TRUSTED_CA_FILE=/etc/etcd/pki/ca.crt
+    
+    ETCD_NAME=$(hostname)
+    ETCD_ADVERTISE_CLIENT_URLS=https://$(hostname):2379
+    
+    EOF
+    
+    sudo systemctl restart etcd
+    ```
+  
+    We want to now configure the etcdctl client to use the certificates
+  
+    ```sh
+    cat <<EOF | tee -a "$HOME/.bashrc" "$HOME/.profile"
+    
+    export ETCDCTL_CACERT=/etc/etcd/pki/ca.crt
+    export ETCDCTL_CERT=/etc/etcd/pki/client.crt
+    export ETCDCTL_KEY=/etc/etcd/pki/client.key
+    export ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
+    EOF
+    
+    # we check if its working or not
+    bash --login -c "etcdctl endpoint health"
+    ```
+    
   
 4. Connectivity and configurations

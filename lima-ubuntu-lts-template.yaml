@@ -4,6 +4,8 @@ base:
   - template:_images/ubuntu-24.04
   - template:_default/mounts
 
+mounts: []
+
 # we want connectivity to be available across vms
 networks:
   - lima: user-v2
