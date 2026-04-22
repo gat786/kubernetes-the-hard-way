@@ -4,6 +4,31 @@ I am gonna be using the course by Márk Sági-Kazár on Iximiuz Labs
 called Kubernetes The Very Hard way as my guiding point, which in turn
 is based out of Kelsey Hightowers Kubernetes the Hard Way repository.
 
+Inorder to make the networking work across vms, I had to change networking
+type of vms to be `user-v2` in the networks.
+
+Doing this makes the vms accessible to each other at `lima-INSTANCE_NAME.internal`
+this makes it possible for us to make the cross vm communication work.
+The connectivity from hosts to vms is done a little differently.
+
+Inorder to make sure that our host system is able to communicate with vms,
+we will have to open up a socks proxy tunnel using limactl and then use
+the tunnel as proxy argument in curl to be able to reach pods.
+
+```
+$ limactl tunnel worker
+WARN[0000] `limactl tunnel` is experimental
+Open <System Settings> → <Network> → <Wi-Fi> (or whatever) → <Details> → <Proxies> → <SOCKS proxy>,
+and specify the following configuration:
+- Server: 127.0.0.1
+- Port: 56827
+The instance can be connected from the host as <http://lima-worker.internal> via a web browser.
+```
+
+```
+$ curl -k --proxy socks5h://127.0.0.1:56827 https://lima-worker.internal:10250/pods
+```
+
 Apart from using their points I will be trying to use my knowledge to its
 best inorder to do it all in one day.
 
@@ -348,7 +373,11 @@ best inorder to do it all in one day.
     etcdctl completion bash | sudo tee /etc/bash_completion.d/etcdctl
     ```
     
-    We will be running etcd with a different user, lets create a new use for that
+    Since etcd is a critical part if a Kubernetes installation and it is also 
+    the only part which actually writes files to the disk and needs access to a
+    directory to read and write files, we ought to take special considerations
+    when deploying it, we will be running etcd with a different user, 
+    lets create a new use for that
   
     ```sh
     sudo adduser \
@@ -364,7 +393,64 @@ best inorder to do it all in one day.
     unit service
     
     ```sh
-    sudo wget -O /etc/systemd/system/etcd.service https://labs.iximiuz.com/content/files/courses/kubernetes-the-very-hard-way-0cbfd997/03-control-plane/01-etcd/__static__/etcd.service
+    sudo wget -O /etc/systemd/system/etcd.service \
+        https://labs.iximiuz.com/content/files/courses/kubernetes-the-very-hard-way-0cbfd997/03-control-plane/01-etcd/__static__/etcd.service
+    ```
+  
+    Interacting with etcd can be done using etcdctl and it comes along with an etcd
+    installation, we just did it and we should already have it in our machine.
+  
+    We can use commands like this 
+  
+    ```
+    etcdctl endpoints health
+  
+    # insert data
+    etcdctl put foo foovalue
+    
+    # get present data
+    etcdctl get foo
+    
+    # the above will return value and key, inorder to only values
+    etcdctl get foo --print-value-only
+  
+    # data can also be inserted in a prefix-based fashion
+    etcdctl put /foo/key value
+  
+    # keys can be listed like below
+    etcdctl get --prefix /foo --keys-only
+    ```
+  
+    This is the part where we begin to add components to the system and there 
+    needs to be some common best practices that we should follow inorder to make
+    sure that the flow of communication of data across our cluster remains fast
+    and secure all throughout. It basically means we dont want to egress of ingress
+    any traffic which is not secure or encrypted by default. Doing that would lead
+    to easy manipulation of data that can result in harmful consequences.
+  
+    We want to start utilising TLS certificates to encrypt our data in air and 
+    make sure it is unreadable to anyone who catches it in-transit.
+    
+    Lets start with setting it up for etcd.
+    
+    Create a directory to hold PKI Data
+  
+    ```sh
+    sudo mkdir -p /etc/etcd/pki
+    cd /etc/etcd/pki
+    ```
+  
+    Lets create a certificate authority with which we can create certificates 
+    for different components
+  
+    ```sh
+    sudo openssl genrsa -out ca.key 4096
+    
+    sudo openssl req -x509 -new -nodes \
+        -key ca.key -out ca.crt \
+        -subj "/CN=etcd" \
+        -sha256 \
+        -days 3650
     ```
     
   
