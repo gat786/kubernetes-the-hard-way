@@ -551,6 +551,47 @@ best inorder to do it all in one day.
     # we check if its working or not
     bash --login -c "etcdctl endpoint health"
     ```
+  
+  * kube-apiserver
     
+    Kube-ApiServer is the frontend of kubernetes, inorder to deploy an app or
+    inorder to expose a service basically whatever changes you would want to make
+    to a kubernetes cluster they go through Kube-ApiServer.
+    
+    This is where we start to get in holy grails of Kubernetes
+  
+    ```sh
+    KUBE_VERSION=v1.34.0
+    
+    curl -fsSLO "https://dl.k8s.io/${KUBE_VERSION?}/bin/linux/amd64/kube-apiserver"
+    
+    sudo install -m 755 kube-apiserver /usr/local/bin
+    ```
+    
+    Getting the service file and then storing it in the systemd directory, so 
+    that we can start it up using systemctl commandline app
+  
+    ```sh
+    sudo wget -O /etc/systemd/system/kube-apiserver.service \
+        https://labs.iximiuz.com/content/files/courses/kubernetes-the-very-hard-way-0cbfd997/03-control-plane/02-kube-apiserver/__static__/kube-apiserver.service?v=1774217654
+    ```
+  
+    Kube API Server also requires PKI items
+  
+    ```sh
+    sudo mkdir -p /etc/kubernetes/pki
+    cd /etc/kubernetes/pki
+    ```
+  
+    ```sh
+    (
+        sudo mkdir -p /etc/kubernetes/pki
+        cd /etc/kubernetes/pki
+        sudo openssl genrsa -out sa.key 2048
+        sudo openssl rsa -in sa.key -pubout -out sa.pub
+    )
+    ```
+  
+  
   
 4. Connectivity and configurations
